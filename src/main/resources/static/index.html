@@ -1,12 +1,1078 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Smart Inventory & Billing</title><link rel="stylesheet" href="style.css"><script src="https://cdn.jsdelivr.net/npm/chart.js"></script></head>
-<body><div id="login" class="login-wrap"><form id="loginForm" class="login-card"><h1>Smart Inventory</h1><p>Sign in to manage your store</p><label>Username</label><input id="username" value="admin" required><label>Password</label><input id="password" type="password" value="Admin@123" required><button>Login</button><small>Demo admin: admin / Admin@123<br>Demo staff: staff / Staff@123</small><p id="loginError" class="error"></p></form></div>
-<div id="app" class="layout hidden"><aside><h2>StockWise</h2><p class="muted">Inventory & Billing</p><nav><button data-page="dashboard">Dashboard</button><button data-page="products">Products</button><button data-page="customers">Customers</button><button data-page="suppliers">Suppliers</button><button data-page="billing">Create Bill</button><button data-page="sales">Sales History</button></nav><button id="logout" class="logout">Logout</button></aside>
-<main><header><div><h1 id="pageTitle">Dashboard</h1><p class="muted">Manage products, stock and sales in one place.</p></div><span id="userBadge"></span></header>
-<section id="dashboard" class="page"><div class="cards" id="stats"></div><div class="panel"><h3>Sales overview</h3><canvas id="salesChart"></canvas></div><div class="panel"><h3>Low stock products</h3><div id="lowStock"></div></div></section>
-<section id="products" class="page hidden"><div class="panel"><h3>Add / Edit Product</h3><form id="productForm" class="grid-form"><input type="hidden" id="productId"><input id="pName" placeholder="Product name" required><input id="pCategory" placeholder="Category"><input id="pPrice" type="number" min="0" step=".01" placeholder="Price" required><input id="pQty" type="number" min="0" placeholder="Quantity" required><input id="pMin" type="number" min="0" placeholder="Minimum stock" value="5"><input id="pBarcode" placeholder="Barcode (optional)"><input id="pSupplier" placeholder="Supplier name"><button>Save Product</button><button type="button" class="secondary" id="clearProduct">Clear</button></form></div><div class="panel"><div class="toolbar"><h3>Products</h3><input id="productSearch" placeholder="Search product or category"></div><div id="productTable"></div></div></section>
-<section id="customers" class="page hidden"><div class="panel"><h3>Add Customer</h3><form id="customerForm" class="grid-form"><input id="cName" placeholder="Customer name" required><input id="cPhone" placeholder="Phone"><input id="cEmail" type="email" placeholder="Email"><button>Save Customer</button></form></div><div class="panel"><h3>Customers</h3><div id="customerTable"></div></div></section>
-<section id="suppliers" class="page hidden"><div class="panel"><h3>Add Supplier</h3><form id="supplierForm" class="grid-form"><input id="sName" placeholder="Supplier name" required><input id="sPhone" placeholder="Phone"><input id="sEmail" type="email" placeholder="Email"><input id="sAddress" placeholder="Address"><button>Save Supplier</button></form></div><div class="panel"><h3>Suppliers</h3><div id="supplierTable"></div></div></section>
-<section id="billing" class="page hidden"><div class="panel"><h3>Create customer bill</h3><div class="grid-form"><input id="billCustomer" placeholder="Customer name (optional)"><select id="billProduct"></select><input id="billQty" type="number" min="1" value="1"><button id="addBillItem" type="button">Add item</button></div><div id="cartTable"></div><div class="grid-form totals"><input id="discount" type="number" min="0" value="0" placeholder="Discount amount"><input id="gst" type="number" min="0" value="5" placeholder="GST %"><button id="createBill" type="button">Generate Bill</button></div><p id="billMessage"></p></div></section>
-<section id="sales" class="page hidden"><div class="panel"><h3>Sales history</h3><div id="salesTable"></div></div></section>
-</main></div><script src="app.js"></script></body></html>
+<html lang="en" class="h-full bg-slate-50">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>StockWise Pro · Smart Inventory & Billing ERP</title>
+  
+  <!-- Google Fonts: Plus Jakarta Sans & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+            mono: ['"JetBrains Mono"', 'monospace'],
+          },
+          colors: {
+            brand: {
+              50: '#eef2ff',
+              100: '#e0e7ff',
+              200: '#c7d2fe',
+              300: '#a5b4fc',
+              400: '#818cf8',
+              500: '#6366f1',
+              600: '#4f46e5',
+              700: '#4338ca',
+              800: '#3730a3',
+              900: '#312e81',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+  
+  <!-- Chart.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  
+  <!-- QRCode.js CDN for Dynamic UPI Payment QR -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  
+  <!-- html5-qrcode CDN for Live Camera Barcode/QR Scanning -->
+  <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+  
+  <!-- Canvas Confetti CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
+  
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="h-full font-sans antialiased text-slate-800 bg-slate-50 flex flex-col selection:bg-brand-500 selection:text-white">
+
+  <!-- ==================== TOAST NOTIFICATIONS CONTAINER ==================== -->
+  <div id="toastContainer" class="fixed top-5 right-5 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none"></div>
+
+  <!-- ==================== LOGIN VIEW ==================== -->
+  <div id="loginView" class="fixed inset-0 z-40 flex items-center justify-center p-4 bg-slate-900 bg-radial-gradient">
+    <div class="relative w-full max-w-md bg-white/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-slate-100 p-8 overflow-hidden">
+      <!-- Glow ambient backdrop -->
+      <div class="absolute -top-16 -right-16 w-44 h-44 bg-brand-500/20 rounded-full blur-3xl pointer-events-none"></div>
+      <div class="absolute -bottom-16 -left-16 w-44 h-44 bg-emerald-500/20 rounded-full blur-3xl pointer-events-none"></div>
+
+      <div class="relative text-center mb-8">
+        <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-gradient-to-tr from-brand-600 to-indigo-500 text-white shadow-lg shadow-brand-500/30 mb-3 text-2xl">
+          <i class="fa-solid fa-bolt"></i>
+        </div>
+        <h1 class="text-2xl font-extrabold text-slate-900 tracking-tight">StockWise Pro</h1>
+        <p class="text-xs uppercase tracking-wider font-semibold text-brand-600 mt-1">Smart Inventory & POS Billing ERP</p>
+        <p class="text-sm text-slate-500 mt-2">Internship Portfolio Demo · Spring Boot 3 & MySQL</p>
+      </div>
+
+      <form id="loginForm" class="space-y-4 relative">
+        <div>
+          <label class="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1">Username</label>
+          <div class="relative">
+            <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
+              <i class="fa-regular fa-user"></i>
+            </span>
+            <input id="username" type="text" value="admin" required
+              class="w-full pl-10 pr-4 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500 transition-all text-slate-900 font-medium">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold uppercase tracking-wider text-slate-700 mb-1">Password</label>
+          <div class="relative">
+            <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
+              <i class="fa-solid fa-lock"></i>
+            </span>
+            <input id="password" type="password" value="Admin@123" required
+              class="w-full pl-10 pr-4 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500 transition-all text-slate-900 font-medium">
+          </div>
+        </div>
+
+        <button type="submit" id="loginBtn"
+          class="w-full py-3 px-4 bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-700 hover:to-indigo-700 text-white font-semibold rounded-xl shadow-lg shadow-brand-500/25 transition-all transform active:scale-[0.98] flex items-center justify-center gap-2">
+          <span>Sign In to Terminal</span>
+          <i class="fa-solid fa-arrow-right text-xs"></i>
+        </button>
+
+        <!-- Quick Demo Fill Pills -->
+        <div class="pt-3 border-t border-slate-100">
+          <p class="text-xs text-center text-slate-400 font-medium mb-2">1-Click Demo Login credentials:</p>
+          <div class="grid grid-cols-2 gap-2 text-xs">
+            <button type="button" onclick="fillCreds('admin', 'Admin@123')"
+              class="py-2 px-3 bg-brand-50 hover:bg-brand-100 text-brand-700 rounded-lg font-medium border border-brand-200/60 flex items-center justify-center gap-1.5 transition">
+              <i class="fa-solid fa-shield-halved text-[11px]"></i> Admin (Full)
+            </button>
+            <button type="button" onclick="fillCreds('staff', 'Staff@123')"
+              class="py-2 px-3 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg font-medium border border-slate-200 flex items-center justify-center gap-1.5 transition">
+              <i class="fa-solid fa-user-tag text-[11px]"></i> Staff (Cashier)
+            </button>
+          </div>
+        </div>
+
+        <p id="loginError" class="text-xs text-rose-500 font-medium text-center min-h-[1.25rem]"></p>
+      </form>
+    </div>
+  </div>
+
+  <!-- ==================== MAIN DASHBOARD LAYOUT ==================== -->
+  <div id="appView" class="hidden h-full flex flex-col overflow-hidden bg-slate-100">
+
+    <!-- Top Navigation Header -->
+    <header class="h-16 bg-white border-b border-slate-200 px-4 md:px-6 flex items-center justify-between shrink-0 shadow-sm z-30">
+      <div class="flex items-center gap-3">
+        <button id="toggleSidebarBtn" class="w-9 h-9 rounded-lg hover:bg-slate-100 text-slate-600 flex items-center justify-center lg:hidden">
+          <i class="fa-solid fa-bars text-lg"></i>
+        </button>
+        <div class="flex items-center gap-2.5">
+          <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-brand-600 to-indigo-500 text-white flex items-center justify-center font-bold text-lg shadow-sm shadow-brand-500/30">
+            <i class="fa-solid fa-bolt"></i>
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="font-bold text-slate-900 tracking-tight text-base">StockWise Pro</span>
+              <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700 tracking-wide">ENTERPRISE</span>
+            </div>
+            <p class="text-[11px] text-slate-400 hidden sm:block">Smart Inventory & POS Billing ERP</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Center Live Clock & System Status -->
+      <div class="hidden md:flex items-center gap-4 text-xs font-medium text-slate-500">
+        <div class="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-100 border border-slate-200/80">
+          <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          <span>Server: Online (Port 8080)</span>
+        </div>
+        <div class="flex items-center gap-1.5 text-slate-600 font-mono">
+          <i class="fa-regular fa-clock text-slate-400"></i>
+          <span id="liveClock">18 Nov 2026, 11:30 AM</span>
+        </div>
+      </div>
+
+      <!-- Right Action Items -->
+      <div class="flex items-center gap-2.5">
+        <!-- Quick Action: Live Camera Scanner -->
+        <button onclick="openBarcodeScannerModal()" title="Live Camera Barcode Scanner"
+          class="px-3 py-1.5 text-xs font-semibold bg-brand-50 text-brand-700 hover:bg-brand-100 border border-brand-200/80 rounded-lg flex items-center gap-1.5 transition">
+          <i class="fa-solid fa-barcode text-sm"></i>
+          <span class="hidden sm:inline">Camera Scanner</span>
+        </button>
+
+        <!-- Low Stock Bell -->
+        <button onclick="showPage('products'); filterLowStockOnly()" title="Low stock alerts"
+          class="relative w-9 h-9 rounded-lg hover:bg-slate-100 text-slate-600 flex items-center justify-center transition">
+          <i class="fa-regular fa-bell text-base"></i>
+          <span id="lowStockBadge" class="hidden absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-rose-500 ring-2 ring-white"></span>
+        </button>
+
+        <!-- User Role Pill -->
+        <div class="flex items-center gap-2 pl-2 border-l border-slate-200">
+          <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-slate-700 to-slate-900 text-white font-bold text-xs flex items-center justify-center shadow-sm">
+            <span id="userAvatarText">AD</span>
+          </div>
+          <div class="hidden lg:block text-left">
+            <p id="userNameText" class="text-xs font-bold text-slate-800 leading-tight">Admin User</p>
+            <p id="userRoleBadge" class="text-[10px] font-semibold text-brand-600">ROLE_ADMIN</p>
+          </div>
+          <button id="logoutBtn" title="Sign Out"
+            class="w-8 h-8 rounded-lg hover:bg-rose-50 hover:text-rose-600 text-slate-400 flex items-center justify-center ml-1 transition">
+            <i class="fa-solid fa-arrow-right-from-bracket text-sm"></i>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Workspace Area -->
+    <div class="flex-1 flex overflow-hidden">
+
+      <!-- Sidebar -->
+      <aside id="sidebar" class="w-64 bg-white border-r border-slate-200 flex flex-col shrink-0 transition-all duration-300 z-20">
+        <!-- Navigation Menu -->
+        <div class="p-3 space-y-1 overflow-y-auto flex-1">
+          <div class="px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-400">Main Modules</div>
+          
+          <button data-page="dashboard" class="nav-item active">
+            <i class="fa-solid fa-chart-pie w-5 text-center"></i>
+            <span>Dashboard</span>
+          </button>
+          
+          <button data-page="billing" class="nav-item">
+            <i class="fa-solid fa-cash-register w-5 text-center"></i>
+            <span>POS Billing Terminal</span>
+            <span class="ml-auto px-1.5 py-0.5 rounded text-[10px] font-bold bg-brand-100 text-brand-700">FAST</span>
+          </button>
+          
+          <button data-page="products" class="nav-item">
+            <i class="fa-solid fa-boxes-stacked w-5 text-center"></i>
+            <span>Inventory Catalog</span>
+          </button>
+          
+          <button data-page="sales" class="nav-item">
+            <i class="fa-solid fa-receipt w-5 text-center"></i>
+            <span>Sales & Invoices</span>
+          </button>
+          
+          <button data-page="customers" class="nav-item">
+            <i class="fa-solid fa-users w-5 text-center"></i>
+            <span>Customers & CRM</span>
+          </button>
+          
+          <button data-page="suppliers" class="nav-item">
+            <i class="fa-solid fa-truck-field w-5 text-center"></i>
+            <span>Suppliers & Orders</span>
+          </button>
+
+          <div class="pt-4 px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-400">Internship Super Features</div>
+
+          <button data-page="ai-assistant" class="nav-item group">
+            <i class="fa-solid fa-robot w-5 text-center text-indigo-500 group-hover:scale-110 transition"></i>
+            <span class="font-semibold text-indigo-950">AI Receipt Scanner</span>
+            <span class="ml-auto px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-gradient-to-r from-indigo-500 to-purple-500 text-white shadow-sm">AI OCR</span>
+          </button>
+
+          <button data-page="analytics" class="nav-item">
+            <i class="fa-solid fa-chart-line w-5 text-center text-emerald-600"></i>
+            <span>Profit & Valuation</span>
+          </button>
+        </div>
+
+        <!-- Sidebar Footer Card -->
+        <div class="p-3 border-t border-slate-200 bg-slate-50/50 m-2 rounded-xl border">
+          <div class="flex items-center gap-2 mb-1.5">
+            <i class="fa-solid fa-circle-check text-emerald-500 text-xs"></i>
+            <span class="text-xs font-bold text-slate-800">Portfolio Ready</span>
+          </div>
+          <p class="text-[11px] text-slate-500 leading-snug">Spring Boot 3 REST API + JPA + Security + PDF & UPI</p>
+          <div class="mt-2 text-[10px] text-slate-400 font-mono flex items-center justify-between">
+            <span>By Kavita Kirikiri</span>
+            <span class="text-brand-600 font-semibold">v1.0.0</span>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Main Content Scroll Area -->
+      <main class="flex-1 overflow-y-auto p-4 md:p-6 lg:p-8 space-y-6">
+
+        <!-- ==================== PAGE: DASHBOARD ==================== -->
+        <section id="page-dashboard" class="page-content space-y-6">
+          <!-- Page Header -->
+          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h2 class="text-2xl font-extrabold text-slate-900 tracking-tight">Executive Dashboard</h2>
+              <p class="text-sm text-slate-500 mt-0.5">Real-time inventory valuation, revenue trends, and operational metrics.</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <button onclick="showPage('billing')"
+                class="px-4 py-2.5 bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-700 hover:to-indigo-700 text-white text-xs font-bold rounded-xl shadow-md shadow-brand-500/25 flex items-center gap-2 transition transform active:scale-95">
+                <i class="fa-solid fa-plus text-xs"></i>
+                <span>Open POS Terminal</span>
+              </button>
+              <button onclick="exportProductsCSV()"
+                class="px-3.5 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-bold rounded-xl shadow-sm flex items-center gap-1.5 transition">
+                <i class="fa-solid fa-file-excel text-emerald-600"></i>
+                <span>Export CSV</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- KPI Cards Grid -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <!-- Today's Sales -->
+            <div class="kpi-card bg-gradient-to-br from-indigo-500/10 via-white to-white border-brand-100">
+              <div class="flex items-center justify-between mb-3">
+                <span class="text-xs font-bold uppercase tracking-wider text-indigo-600">Today's Sales</span>
+                <div class="w-10 h-10 rounded-xl bg-indigo-50 text-brand-600 flex items-center justify-center text-lg">
+                  <i class="fa-solid fa-indian-rupee-sign"></i>
+                </div>
+              </div>
+              <div class="text-2xl font-black text-slate-900 font-sans tracking-tight" id="kpiTodaySales">₹0.00</div>
+              <div class="flex items-center gap-1.5 mt-2 text-[11px] text-emerald-600 font-semibold">
+                <i class="fa-solid fa-arrow-trend-up"></i>
+                <span>Updated in real-time</span>
+              </div>
+            </div>
+
+            <!-- Total Revenue -->
+            <div class="kpi-card bg-gradient-to-br from-emerald-500/10 via-white to-white border-emerald-100">
+              <div class="flex items-center justify-between mb-3">
+                <span class="text-xs font-bold uppercase tracking-wider text-emerald-700">Total Revenue</span>
+                <div class="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-lg">
+                  <i class="fa-solid fa-chart-line"></i>
+                </div>
+              </div>
+              <div class="text-2xl font-black text-slate-900 font-sans tracking-tight" id="kpiTotalSales">₹0.00</div>
+              <div class="flex items-center gap-1.5 mt-2 text-[11px] text-slate-500 font-medium">
+                <span id="kpiBillCount">0 bills generated</span>
+              </div>
+            </div>
+
+            <!-- Inventory Units & Products -->
+            <div class="kpi-card bg-gradient-to-br from-blue-500/10 via-white to-white border-blue-100">
+              <div class="flex items-center justify-between mb-3">
+                <span class="text-xs font-bold uppercase tracking-wider text-blue-700">Catalog SKUs</span>
+                <div class="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center text-lg">
+                  <i class="fa-solid fa-boxes-stacked"></i>
+                </div>
+              </div>
+              <div class="text-2xl font-black text-slate-900 font-sans tracking-tight" id="kpiProductCount">0</div>
+              <div class="flex items-center justify-between mt-2 text-[11px] text-slate-500 font-medium">
+                <span>Valuation: <b id="kpiValuation" class="text-slate-800">₹0.00</b></span>
+              </div>
+            </div>
+
+            <!-- Low Stock Warnings -->
+            <div class="kpi-card bg-gradient-to-br from-rose-500/10 via-white to-white border-rose-100">
+              <div class="flex items-center justify-between mb-3">
+                <span class="text-xs font-bold uppercase tracking-wider text-rose-700">Low Stock SKUs</span>
+                <div class="w-10 h-10 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center text-lg">
+                  <i class="fa-solid fa-triangle-exclamation"></i>
+                </div>
+              </div>
+              <div class="text-2xl font-black text-rose-600 font-sans tracking-tight" id="kpiLowStock">0</div>
+              <div class="flex items-center gap-1.5 mt-2 text-[11px] text-rose-500 font-semibold">
+                <i class="fa-solid fa-circle-exclamation"></i>
+                <span>Action needed for restock</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Charts Row -->
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <!-- Revenue Trend Chart -->
+            <div class="lg:col-span-2 bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex flex-col justify-between">
+              <div class="flex items-center justify-between mb-4">
+                <div>
+                  <h3 class="font-bold text-slate-800 text-base">7-Day Revenue Trend</h3>
+                  <p class="text-xs text-slate-400">Daily sales breakdown and transaction performance</p>
+                </div>
+                <span class="px-2.5 py-1 rounded-lg text-xs font-bold bg-brand-50 text-brand-700 border border-brand-100">
+                  Daily Sales
+                </span>
+              </div>
+              <div class="h-64 relative">
+                <canvas id="salesTrendChart"></canvas>
+              </div>
+            </div>
+
+            <!-- Category Distribution Doughnut -->
+            <div class="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm flex flex-col justify-between">
+              <div class="flex items-center justify-between mb-4">
+                <div>
+                  <h3 class="font-bold text-slate-800 text-base">Category Distribution</h3>
+                  <p class="text-xs text-slate-400">Inventory share across domains</p>
+                </div>
+              </div>
+              <div class="h-64 relative flex items-center justify-center">
+                <canvas id="categoryChart"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <!-- Low Stock Warning Table & Quick Restock -->
+          <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <div class="p-5 border-b border-slate-200 flex items-center justify-between bg-slate-50/50">
+              <div class="flex items-center gap-2.5">
+                <div class="w-8 h-8 rounded-lg bg-rose-100 text-rose-600 flex items-center justify-center text-sm">
+                  <i class="fa-solid fa-triangle-exclamation"></i>
+                </div>
+                <div>
+                  <h3 class="font-bold text-slate-900 text-base">Critical Low Stock Items</h3>
+                  <p class="text-xs text-slate-500">Products currently at or below minimum buffer threshold</p>
+                </div>
+              </div>
+              <button onclick="showPage('products'); filterLowStockOnly()" class="text-xs font-bold text-brand-600 hover:text-brand-700 flex items-center gap-1">
+                <span>View Full Catalog</span>
+                <i class="fa-solid fa-arrow-right text-[10px]"></i>
+              </button>
+            </div>
+            <div class="overflow-x-auto" id="dashboardLowStockContainer"></div>
+          </div>
+        </section>
+
+        <!-- ==================== PAGE: POS BILLING TERMINAL ==================== -->
+        <section id="page-billing" class="page-content hidden space-y-6">
+          <!-- Terminal Header -->
+          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <div class="flex items-center gap-2">
+                <h2 class="text-2xl font-extrabold text-slate-900 tracking-tight">Point of Sale (POS) Cashier</h2>
+                <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-700">FAST CHECKOUT</span>
+              </div>
+              <p class="text-sm text-slate-500 mt-0.5">Instant barcode scanner, dynamic UPI QR payments, and print-ready receipts.</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <button onclick="openBarcodeScannerModal()"
+                class="px-3.5 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 text-white text-xs font-bold rounded-xl shadow-sm flex items-center gap-2 transition">
+                <i class="fa-solid fa-camera"></i>
+                <span>Open Camera Scanner</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Dual-Pane POS Layout -->
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            
+            <!-- Left Pane: Product Search & Quick Picker (7 Cols) -->
+            <div class="lg:col-span-7 space-y-4">
+              <!-- Live Search & Barcode Scan Bar -->
+              <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-3">
+                <div class="relative">
+                  <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                  </span>
+                  <input id="posSearchInput" type="text" placeholder="Search by product name, category, or scan barcode..."
+                    class="w-full pl-10 pr-24 py-2.5 text-sm bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-2 focus:ring-brand-500/30 focus:border-brand-500 transition-all">
+                  <button onclick="openBarcodeScannerModal()" title="Scan physical barcode"
+                    class="absolute inset-y-1.5 right-1.5 px-3 bg-brand-50 hover:bg-brand-100 text-brand-700 rounded-lg text-xs font-semibold flex items-center gap-1.5 transition">
+                    <i class="fa-solid fa-barcode text-sm"></i>
+                    <span>Scan</span>
+                  </button>
+                </div>
+
+                <!-- Category Chips -->
+                <div id="posCategoryChips" class="flex items-center gap-1.5 overflow-x-auto pb-1 text-xs">
+                  <button onclick="filterPosCategory('ALL')" class="category-chip active">All Items</button>
+                </div>
+              </div>
+
+              <!-- Product Grid Cards -->
+              <div id="posProductGrid" class="grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-[580px] overflow-y-auto pr-1"></div>
+            </div>
+
+            <!-- Right Pane: Active Bill Cart Drawer (5 Cols) -->
+            <div class="lg:col-span-5 bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-4 sticky top-4">
+              <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div class="flex items-center gap-2">
+                  <div class="w-8 h-8 rounded-lg bg-brand-50 text-brand-600 flex items-center justify-center text-sm font-bold">
+                    <i class="fa-solid fa-cart-shopping"></i>
+                  </div>
+                  <div>
+                    <h3 class="font-bold text-slate-900 text-sm">Customer Bill</h3>
+                    <p class="text-[11px] text-slate-400">Review line items & tax</p>
+                  </div>
+                </div>
+                <button onclick="clearCart()" class="text-xs text-rose-500 hover:text-rose-700 font-semibold flex items-center gap-1 transition">
+                  <i class="fa-regular fa-trash-can"></i>
+                  <span>Clear</span>
+                </button>
+              </div>
+
+              <!-- Customer Info Inputs -->
+              <div class="grid grid-cols-2 gap-2">
+                <div>
+                  <label class="block text-[11px] font-semibold text-slate-600 mb-1">Customer Name</label>
+                  <input id="billCustomerName" type="text" placeholder="Walk-in Customer"
+                    class="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:outline-none focus:ring-1 focus:ring-brand-500 font-medium">
+                </div>
+                <div>
+                  <label class="block text-[11px] font-semibold text-slate-600 mb-1">WhatsApp / Phone</label>
+                  <input id="billCustomerPhone" type="tel" placeholder="+91 98765 43210"
+                    class="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:outline-none focus:ring-1 focus:ring-brand-500 font-medium">
+                </div>
+              </div>
+
+              <!-- Cart Line Items Container -->
+              <div id="cartItemsList" class="space-y-2 max-h-56 overflow-y-auto divide-y divide-slate-100 min-h-[120px]">
+                <div class="text-center py-10 text-slate-400 text-xs">
+                  <i class="fa-solid fa-basket-shopping text-3xl mb-2 text-slate-300 block"></i>
+                  <span>Cart is empty. Tap products or scan barcode to add!</span>
+                </div>
+              </div>
+
+              <!-- Pricing & Tax Calculations -->
+              <div class="pt-3 border-t border-slate-200 space-y-2 text-xs">
+                <div class="flex items-center justify-between text-slate-600">
+                  <span>Subtotal:</span>
+                  <span id="billSubtotalText" class="font-bold font-mono">₹0.00</span>
+                </div>
+
+                <div class="grid grid-cols-2 gap-2 pt-1">
+                  <div>
+                    <label class="block text-[10px] font-semibold text-slate-500 mb-1">Discount (₹):</label>
+                    <input id="billDiscountInput" type="number" min="0" value="0" step="1" oninput="calculateBillTotals()"
+                      class="w-full px-2.5 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-brand-500 font-mono">
+                  </div>
+                  <div>
+                    <label class="block text-[10px] font-semibold text-slate-500 mb-1">GST Tax (%):</label>
+                    <select id="billGstSelect" onchange="calculateBillTotals()"
+                      class="w-full px-2.5 py-1.5 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-brand-500 font-medium">
+                      <option value="0">0% (Nil)</option>
+                      <option value="5" selected>5% (Standard)</option>
+                      <option value="12">12% (Goods)</option>
+                      <option value="18">18% (Services/Tech)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div class="flex items-center justify-between text-slate-600">
+                  <span>GST Amount:</span>
+                  <span id="billGstAmountText" class="font-bold font-mono text-emerald-600">+₹0.00</span>
+                </div>
+
+                <div class="pt-2 border-t border-slate-200 flex items-center justify-between text-base font-black text-slate-900">
+                  <span>Total Payable:</span>
+                  <span id="billGrandTotalText" class="text-xl font-black text-brand-600 font-mono">₹0.00</span>
+                </div>
+              </div>
+
+              <!-- Payment Method Selector -->
+              <div>
+                <label class="block text-[11px] font-semibold text-slate-600 mb-1.5">Payment Method</label>
+                <div class="grid grid-cols-3 gap-2 text-xs font-semibold">
+                  <label class="pay-method-radio">
+                    <input type="radio" name="payMethod" value="UPI" checked class="hidden">
+                    <div class="pay-method-pill">
+                      <i class="fa-brands fa-google-pay text-lg"></i>
+                      <span>UPI</span>
+                    </div>
+                  </label>
+                  <label class="pay-method-radio">
+                    <input type="radio" name="payMethod" value="CASH" class="hidden">
+                    <div class="pay-method-pill">
+                      <i class="fa-solid fa-money-bill-wave text-base"></i>
+                      <span>Cash</span>
+                    </div>
+                  </label>
+                  <label class="pay-method-radio">
+                    <input type="radio" name="payMethod" value="CARD" class="hidden">
+                    <div class="pay-method-pill">
+                      <i class="fa-regular fa-credit-card text-base"></i>
+                      <span>Card</span>
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              <!-- Action Checkout Buttons -->
+              <div class="space-y-2 pt-2">
+                <button id="checkoutBtn" onclick="processCheckout()"
+                  class="w-full py-3 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 text-white font-bold rounded-xl shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-2 transition transform active:scale-[0.98]">
+                  <i class="fa-solid fa-circle-check text-sm"></i>
+                  <span>Complete Bill & Generate Receipt</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ==================== PAGE: INVENTORY CATALOG ==================== -->
+        <section id="page-products" class="page-content hidden space-y-6">
+          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h2 class="text-2xl font-extrabold text-slate-900 tracking-tight">Product Inventory</h2>
+              <p class="text-sm text-slate-500 mt-0.5">Manage stock levels, barcodes, cost pricing, and wholesale suppliers.</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <button onclick="openProductModal()"
+                class="px-4 py-2.5 bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-700 text-white text-xs font-bold rounded-xl shadow-md shadow-brand-500/25 flex items-center gap-2 transition">
+                <i class="fa-solid fa-plus text-xs"></i>
+                <span>Add Product</span>
+              </button>
+              <button onclick="exportProductsCSV()"
+                class="px-3.5 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-bold rounded-xl shadow-sm flex items-center gap-1.5 transition">
+                <i class="fa-solid fa-download text-slate-400"></i>
+                <span>CSV</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Filter Toolbar -->
+          <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-col sm:flex-row gap-3 items-center justify-between">
+            <div class="relative w-full sm:w-80">
+              <span class="absolute inset-y-0 left-0 flex items-center pl-3.5 text-slate-400">
+                <i class="fa-solid fa-magnifying-glass"></i>
+              </span>
+              <input id="productCatalogSearch" type="text" placeholder="Filter by product name, category..."
+                class="w-full pl-10 pr-4 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-none focus:ring-1 focus:ring-brand-500">
+            </div>
+
+            <div class="flex items-center gap-2 w-full sm:w-auto">
+              <button id="lowStockFilterBtn" onclick="toggleLowStockFilter()"
+                class="px-3 py-2 rounded-xl text-xs font-semibold border border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100 flex items-center gap-1.5 transition">
+                <i class="fa-solid fa-triangle-exclamation"></i>
+                <span>Low Stock Only</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Product Table -->
+          <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <div class="overflow-x-auto" id="productCatalogTableContainer"></div>
+          </div>
+        </section>
+
+        <!-- ==================== PAGE: SALES HISTORY ==================== -->
+        <section id="page-sales" class="page-content hidden space-y-6">
+          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h2 class="text-2xl font-extrabold text-slate-900 tracking-tight">Sales & Billing History</h2>
+              <p class="text-sm text-slate-500 mt-0.5">Audit customer invoices, download PDFs, print thermal slips, and send WhatsApp receipts.</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <button onclick="exportSalesCSV()"
+                class="px-3.5 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-bold rounded-xl shadow-sm flex items-center gap-1.5 transition">
+                <i class="fa-solid fa-file-excel text-emerald-600"></i>
+                <span>Export Sales CSV</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <div class="overflow-x-auto" id="salesHistoryTableContainer"></div>
+          </div>
+        </section>
+
+        <!-- ==================== PAGE: CUSTOMERS ==================== -->
+        <section id="page-customers" class="page-content hidden space-y-6">
+          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h2 class="text-2xl font-extrabold text-slate-900 tracking-tight">Customer Directory</h2>
+              <p class="text-sm text-slate-500 mt-0.5">Manage customer profiles and instant WhatsApp messaging.</p>
+            </div>
+            <button onclick="openCustomerModal()"
+              class="px-4 py-2.5 bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold rounded-xl shadow-sm flex items-center gap-2 transition">
+              <i class="fa-solid fa-plus text-xs"></i>
+              <span>Add Customer</span>
+            </button>
+          </div>
+
+          <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <div class="overflow-x-auto" id="customersTableContainer"></div>
+          </div>
+        </section>
+
+        <!-- ==================== PAGE: SUPPLIERS ==================== -->
+        <section id="page-suppliers" class="page-content hidden space-y-6">
+          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h2 class="text-2xl font-extrabold text-slate-900 tracking-tight">Wholesale Suppliers</h2>
+              <p class="text-sm text-slate-500 mt-0.5">Procurement contacts, inventory distributors, and vendor logs.</p>
+            </div>
+            <button onclick="openSupplierModal()"
+              class="px-4 py-2.5 bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold rounded-xl shadow-sm flex items-center gap-2 transition">
+              <i class="fa-solid fa-plus text-xs"></i>
+              <span>Add Supplier</span>
+            </button>
+          </div>
+
+          <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <div class="overflow-x-auto" id="suppliersTableContainer"></div>
+          </div>
+        </section>
+
+        <!-- ==================== PAGE: AI OCR RECEIPT SCANNER (INTERNSHIP HIGHLIGHT) ==================== -->
+        <section id="page-ai-assistant" class="page-content hidden space-y-6">
+          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <div class="flex items-center gap-2">
+                <h2 class="text-2xl font-extrabold text-slate-900 tracking-tight">AI Receipt OCR & Stock Advisor</h2>
+                <span class="px-2 py-0.5 rounded-full text-[10px] font-black bg-gradient-to-r from-indigo-500 to-purple-500 text-white">GEMINI VISION OCR</span>
+              </div>
+              <p class="text-sm text-slate-500 mt-0.5">Upload vendor paper receipts or bills to automatically extract line items and restock inventory.</p>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+            
+            <!-- Left: Upload & Drag Drop Zone -->
+            <div class="lg:col-span-6 bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
+              <h3 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+                <i class="fa-solid fa-file-invoice text-indigo-500"></i>
+                <span>Upload Paper Bill / Supplier Invoice</span>
+              </h3>
+
+              <div id="dropZone" class="border-2 border-dashed border-slate-300 hover:border-brand-500 rounded-2xl p-8 text-center transition cursor-pointer bg-slate-50/50">
+                <input type="file" id="receiptFileInput" accept="image/*" class="hidden" onchange="handleReceiptUpload(event)">
+                <div class="w-14 h-14 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center text-2xl mx-auto mb-3 shadow-sm">
+                  <i class="fa-solid fa-cloud-arrow-up"></i>
+                </div>
+                <p class="text-sm font-bold text-slate-700">Click to upload or drag & drop invoice image</p>
+                <p class="text-xs text-slate-400 mt-1">Supports PNG, JPG, JPEG receipts up to 5MB</p>
+              </div>
+
+              <!-- Quick 1-Click Demo Buttons for Presentation -->
+              <div>
+                <p class="text-xs font-semibold text-slate-500 mb-2">Or test with pre-loaded sample supplier invoices:</p>
+                <div class="grid grid-cols-2 gap-2 text-xs">
+                  <button type="button" onclick="loadSampleReceipt('tech')"
+                    class="p-2.5 bg-slate-50 hover:bg-slate-100 rounded-xl border border-slate-200 text-left transition">
+                    <span class="font-bold text-slate-800 block">Apex Tech Hardware</span>
+                    <span class="text-[11px] text-slate-400">Mouse, Keyboards & Cables</span>
+                  </button>
+                  <button type="button" onclick="loadSampleReceipt('stationery')"
+                    class="p-2.5 bg-slate-50 hover:bg-slate-100 rounded-xl border border-slate-200 text-left transition">
+                    <span class="font-bold text-slate-800 block">Metro Paper Mills</span>
+                    <span class="text-[11px] text-slate-400">Spiral Notebooks & Pens</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Image Preview -->
+              <div id="receiptPreviewBox" class="hidden rounded-xl overflow-hidden border border-slate-200 relative">
+                <img id="receiptPreviewImg" src="" alt="Receipt preview" class="w-full max-h-56 object-cover">
+                <div class="absolute inset-0 bg-slate-950/40 backdrop-blur-xs flex items-center justify-center text-white text-xs font-semibold gap-2">
+                  <i class="fa-solid fa-spinner fa-spin text-base"></i>
+                  <span>AI OCR Processing & Parsing...</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Right: Parsed OCR Output & Action -->
+            <div class="lg:col-span-6 bg-white rounded-2xl border border-slate-200 shadow-sm p-6 space-y-4">
+              <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+                <div class="flex items-center gap-2">
+                  <div class="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center text-sm font-bold">
+                    <i class="fa-solid fa-wand-magic-sparkles"></i>
+                  </div>
+                  <div>
+                    <h3 class="font-bold text-slate-900 text-sm">Extracted Line Items</h3>
+                    <p class="text-[11px] text-slate-400">AI parsed structured product data</p>
+                  </div>
+                </div>
+                <span id="ocrStatusBadge" class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-slate-100 text-slate-600">IDLE</span>
+              </div>
+
+              <div id="ocrResultsContainer" class="space-y-3 min-h-[220px]">
+                <div class="text-center py-12 text-slate-400 text-xs">
+                  <i class="fa-solid fa-microchip text-4xl mb-2 text-slate-300 block"></i>
+                  <span>Upload a receipt or click a sample invoice to test AI extraction</span>
+                </div>
+              </div>
+
+              <div id="ocrActionBar" class="hidden pt-3 border-t border-slate-100">
+                <button id="importOcrBtn" onclick="importOcrToInventory()"
+                  class="w-full py-3 bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 text-white font-bold rounded-xl shadow-md shadow-indigo-500/25 flex items-center justify-center gap-2 transition">
+                  <i class="fa-solid fa-arrow-down-to-bracket text-sm"></i>
+                  <span>Import Extracted Items to Inventory</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- ==================== PAGE: FINANCIAL ANALYTICS ==================== -->
+        <section id="page-analytics" class="page-content hidden space-y-6">
+          <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h2 class="text-2xl font-extrabold text-slate-900 tracking-tight">Financial & Profit Analytics</h2>
+              <p class="text-sm text-slate-500 mt-0.5">Wholesale cost valuation, gross margin projection, and stock movement logs.</p>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div class="kpi-card bg-white">
+              <span class="text-xs font-bold uppercase tracking-wider text-slate-500">Retail Inventory Valuation</span>
+              <div class="text-2xl font-black text-slate-900 mt-2 font-mono" id="analyticsRetailValuation">₹0.00</div>
+              <p class="text-xs text-slate-400 mt-1">Total revenue potential at current retail prices</p>
+            </div>
+            <div class="kpi-card bg-white">
+              <span class="text-xs font-bold uppercase tracking-wider text-slate-500">Wholesale Cost Basis</span>
+              <div class="text-2xl font-black text-slate-900 mt-2 font-mono" id="analyticsCostBasis">₹0.00</div>
+              <p class="text-xs text-slate-400 mt-1">Total capital locked in physical stock</p>
+            </div>
+            <div class="kpi-card bg-emerald-50/50 border-emerald-200">
+              <span class="text-xs font-bold uppercase tracking-wider text-emerald-800">Projected Gross Profit</span>
+              <div class="text-2xl font-black text-emerald-600 mt-2 font-mono" id="analyticsProjectedProfit">₹0.00</div>
+              <p class="text-xs text-emerald-700 font-semibold mt-1">Average Profit Margin: <b id="analyticsMarginPercent">~28.5%</b></p>
+            </div>
+          </div>
+
+          <!-- Stock Movement Audit Trail -->
+          <div class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <div class="p-5 border-b border-slate-200 flex items-center justify-between">
+              <div>
+                <h3 class="font-bold text-slate-900 text-base">Recent Stock Movements & Transactions</h3>
+                <p class="text-xs text-slate-400">Audit logs for sales, restocks, and adjustments</p>
+              </div>
+            </div>
+            <div class="overflow-x-auto" id="analyticsMovementsTableContainer"></div>
+          </div>
+        </section>
+
+      </main>
+    </div>
+  </div>
+
+  <!-- ==================== MODALS ==================== -->
+
+  <!-- 1. LIVE CAMERA BARCODE SCANNER MODAL -->
+  <div id="barcodeScannerModal" class="modal-backdrop hidden">
+    <div class="relative w-full max-w-md bg-white rounded-2xl shadow-2xl border border-slate-200 p-6 overflow-hidden space-y-4">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+        <div class="flex items-center gap-2">
+          <div class="w-8 h-8 rounded-lg bg-brand-50 text-brand-600 flex items-center justify-center text-sm">
+            <i class="fa-solid fa-camera"></i>
+          </div>
+          <div>
+            <h3 class="font-bold text-slate-900 text-base">Live Camera Barcode Scanner</h3>
+            <p class="text-xs text-slate-400">Point your camera at any product barcode</p>
+          </div>
+        </div>
+        <button onclick="closeBarcodeScannerModal()" class="w-8 h-8 rounded-lg hover:bg-slate-100 text-slate-400 flex items-center justify-center">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <!-- Live Video Viewfinder Box -->
+      <div class="relative rounded-xl overflow-hidden bg-slate-900 min-h-[260px] flex items-center justify-center border border-slate-800">
+        <div id="reader" class="w-full"></div>
+        <div class="scanner-laser"></div>
+      </div>
+
+      <!-- Manual Barcode Entry Fallback -->
+      <div class="pt-2">
+        <label class="block text-xs font-semibold text-slate-600 mb-1">Or test type simulated barcode:</label>
+        <div class="flex gap-2">
+          <input id="manualBarcodeInput" type="text" placeholder="e.g. 8901030382741"
+            class="flex-1 px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-brand-500 font-mono">
+          <button onclick="handleManualBarcode()" class="px-3.5 py-2 bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold rounded-lg transition">
+            Add
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. DYNAMIC UPI QR PAYMENT MODAL -->
+  <div id="upiPaymentModal" class="modal-backdrop hidden">
+    <div class="relative w-full max-w-sm bg-white rounded-2xl shadow-2xl border border-slate-200 p-6 text-center space-y-4">
+      <div class="flex items-center justify-between pb-2">
+        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider">Dynamic Payment Gateway</span>
+        <button onclick="closeUpiModal()" class="w-7 h-7 rounded-lg hover:bg-slate-100 text-slate-400 flex items-center justify-center">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <div class="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center text-xl mx-auto shadow-sm">
+        <i class="fa-solid fa-qrcode"></i>
+      </div>
+
+      <div>
+        <h3 class="text-lg font-black text-slate-900">Scan & Pay via UPI</h3>
+        <p class="text-xs text-slate-500 mt-0.5">Use PhonePe, Google Pay, Paytm, or BHIM</p>
+      </div>
+
+      <!-- Dynamic QR Box -->
+      <div class="p-4 bg-white rounded-2xl border-2 border-dashed border-emerald-300 inline-block shadow-inner mx-auto">
+        <div id="upiQrcodeContainer" class="flex justify-center items-center"></div>
+      </div>
+
+      <div>
+        <div class="text-2xl font-black text-emerald-600 font-mono tracking-tight" id="upiModalAmount">₹0.00</div>
+        <p class="text-xs text-slate-400 mt-1">Merchant UPI ID: <b class="text-slate-700">kavita.store@upi</b></p>
+      </div>
+
+      <div class="space-y-2 pt-2">
+        <button onclick="confirmUpiSuccess()"
+          class="w-full py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl shadow-md shadow-emerald-500/25 flex items-center justify-center gap-1.5 transition">
+          <i class="fa-solid fa-circle-check"></i>
+          <span>Confirm Payment Received</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 3. THERMAL RECEIPT & PRINT PREVIEW MODAL -->
+  <div id="thermalReceiptModal" class="modal-backdrop hidden">
+    <div class="relative w-full max-w-md bg-white rounded-2xl shadow-2xl border border-slate-200 p-6 space-y-4 max-h-[90vh] flex flex-col">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100 shrink-0">
+        <div class="flex items-center gap-2">
+          <div class="w-8 h-8 rounded-lg bg-brand-50 text-brand-600 flex items-center justify-center text-sm">
+            <i class="fa-solid fa-receipt"></i>
+          </div>
+          <div>
+            <h3 class="font-bold text-slate-900 text-sm">Thermal POS Slip Preview</h3>
+            <p class="text-[11px] text-slate-400">Authentic retail invoice receipt</p>
+          </div>
+        </div>
+        <button onclick="closeReceiptModal()" class="w-8 h-8 rounded-lg hover:bg-slate-100 text-slate-400 flex items-center justify-center">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <!-- Scrollable Receipt Body -->
+      <div id="receiptSlipBody" class="flex-1 overflow-y-auto bg-slate-50 p-4 rounded-xl border border-slate-200 text-slate-900 font-mono text-xs leading-relaxed space-y-3">
+        <!-- Rendered dynamically -->
+      </div>
+
+      <!-- Bottom Print & Share Actions -->
+      <div class="pt-3 border-t border-slate-100 grid grid-cols-2 gap-2 shrink-0">
+        <button onclick="printReceiptSlip()"
+          class="py-2.5 bg-slate-900 hover:bg-black text-white text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 transition">
+          <i class="fa-solid fa-print"></i>
+          <span>Print Thermal Slip</span>
+        </button>
+        <button id="receiptWhatsAppBtn" onclick="shareActiveBillWhatsApp()"
+          class="py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 transition">
+          <i class="fa-brands fa-whatsapp text-sm"></i>
+          <span>Share WhatsApp</span>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 4. ADD / EDIT PRODUCT MODAL -->
+  <div id="productModal" class="modal-backdrop hidden">
+    <div class="relative w-full max-w-lg bg-white rounded-2xl shadow-2xl border border-slate-200 p-6 space-y-4">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+        <h3 id="productModalTitle" class="font-bold text-slate-900 text-base">Add New Product SKU</h3>
+        <button onclick="closeProductModal()" class="w-8 h-8 rounded-lg hover:bg-slate-100 text-slate-400 flex items-center justify-center">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+
+      <form id="productModalForm" class="space-y-3">
+        <input type="hidden" id="pModalId">
+        
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Product Title *</label>
+          <input id="pModalName" type="text" required placeholder="e.g. Wireless Ergonomic Mouse"
+            class="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:outline-none focus:ring-1 focus:ring-brand-500 font-medium">
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Category</label>
+            <input id="pModalCategory" type="text" placeholder="e.g. Electronics"
+              class="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:outline-none focus:ring-1 focus:ring-brand-500 font-medium">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Barcode (EAN-13)</label>
+            <input id="pModalBarcode" type="text" placeholder="e.g. 8901030382741"
+              class="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:outline-none focus:ring-1 focus:ring-brand-500 font-mono">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Selling Price (₹) *</label>
+            <input id="pModalPrice" type="number" step="0.01" min="0" required placeholder="499.00"
+              class="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:outline-none focus:ring-1 focus:ring-brand-500 font-mono">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Cost Price (Wholesale ₹)</label>
+            <input id="pModalCostPrice" type="number" step="0.01" min="0" placeholder="320.00"
+              class="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:outline-none focus:ring-1 focus:ring-brand-500 font-mono">
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Stock Quantity *</label>
+            <input id="pModalQty" type="number" min="0" required placeholder="50"
+              class="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:outline-none focus:ring-1 focus:ring-brand-500 font-mono">
+          </div>
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Minimum Alert Buffer</label>
+            <input id="pModalMinStock" type="number" min="0" value="5"
+              class="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:outline-none focus:ring-1 focus:ring-brand-500 font-mono">
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Supplier Name</label>
+          <input id="pModalSupplier" type="text" placeholder="e.g. Apex Tech Distributors"
+            class="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:bg-white focus:outline-none focus:ring-1 focus:ring-brand-500 font-medium">
+        </div>
+
+        <div class="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
+          <button type="button" onclick="closeProductModal()" class="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg transition">
+            Cancel
+          </button>
+          <button type="submit" class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold rounded-lg shadow-sm transition">
+            Save Product SKU
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 5. ADD CUSTOMER MODAL -->
+  <div id="customerModal" class="modal-backdrop hidden">
+    <div class="relative w-full max-w-sm bg-white rounded-2xl shadow-2xl border border-slate-200 p-6 space-y-4">
+      <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+        <h3 class="font-bold text-slate-900 text-base">Add New Customer</h3>
+        <button onclick="closeCustomerModal()" class="w-8 h-8 rounded-lg hover:bg-slate-100 text-slate-400 flex items-center justify-center">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+      <form id="customerModalForm" class="space-y-3">
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Customer Full Name *</label>
+          <input id="cModalName" type="text" required placeholder="e.g. Rahul Sharma"
+            class="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-brand-500 font-medium">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Phone Number (WhatsApp)</label>
+          <input id="cModalPhone" type="tel" placeholder="+91 98765 12345"
+            class="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-brand-500 font-medium">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Email Address</label>
+          <input id="cModalEmail" type="email" placeholder="customer@gmail.com"
+            class="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-brand-500 font-medium">
+        </div>
+        <div class="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
+          <button type="button" onclick="closeCustomerModal()" class="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg transition">Cancel</button>
+          <button type="submit" class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold rounded-lg shadow-sm transition">Save Customer</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- 6. ADD SUPPLIER MODAL -->
+  <div id="supplierModal" class="modal-backdrop hidden">
+    <div class="relative w-full max-w-sm bg-white rounded-2xl shadow-2xl border border-slate-200 p-6 space-y-4">
+      <div class="flex items-center justify-between pb-2 border-b border-slate-100">
+        <h3 class="font-bold text-slate-900 text-base">Add Wholesale Supplier</h3>
+        <button onclick="closeSupplierModal()" class="w-8 h-8 rounded-lg hover:bg-slate-100 text-slate-400 flex items-center justify-center">
+          <i class="fa-solid fa-xmark text-lg"></i>
+        </button>
+      </div>
+      <form id="supplierModalForm" class="space-y-3">
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Company / Supplier Name *</label>
+          <input id="sModalName" type="text" required placeholder="e.g. Apex Tech Distributors"
+            class="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-brand-500 font-medium">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Contact Phone</label>
+          <input id="sModalPhone" type="tel" placeholder="+91 98765 43210"
+            class="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-brand-500 font-medium">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Business Email</label>
+          <input id="sModalEmail" type="email" placeholder="sales@apextech.in"
+            class="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-brand-500 font-medium">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Office / Warehouse Address</label>
+          <input id="sModalAddress" type="text" placeholder="Brigade Road, Bengaluru"
+            class="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-brand-500 font-medium">
+        </div>
+        <div class="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
+          <button type="button" onclick="closeSupplierModal()" class="px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-100 rounded-lg transition">Cancel</button>
+          <button type="submit" class="px-4 py-2 bg-brand-600 hover:bg-brand-700 text-white text-xs font-bold rounded-lg shadow-sm transition">Save Supplier</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Main JavaScript App -->
+  <script src="app.js"></script>
+</body>
+</html>

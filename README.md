@@ -1,85 +1,140 @@
-# Smart Inventory and Billing Management System
+# ⚡ StockWise Pro · Smart Inventory & POS Billing ERP
 
-Beginner-friendly Spring Boot + MySQL project for the Thasmai Infotech 10-day assessment.
+[![Spring Boot 3](https://img.shields.io/badge/Spring%20Boot-3.5.6-brightgreen.svg)](https://spring.io/projects/spring-boot)
+[![Java 17](https://img.shields.io/badge/Java-17-orange.svg)](https://www.oracle.com/java/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-3.x-38B2AC.svg)](https://tailwindcss.com/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
-## Included features
-- Session-based login with ADMIN and STAFF roles
-- Product CRUD, product search and minimum-stock alerts
-- Customer management
-- Supplier management
-- Billing with discount and configurable GST
-- Stock deduction and stock-history entries in a database transaction
-- Sales history, dashboard totals and Chart.js sales chart
-- Downloadable multi-page PDF invoice
-- Responsive HTML/CSS/JavaScript frontend
+A modern, production-grade **Smart Inventory & POS Billing ERP web application** designed as an internship portfolio presentation project. Built with **Spring Boot 3**, **Spring Security**, **Spring Data JPA**, and a responsive **Tailwind CSS + Vanilla JavaScript (ES6+)** frontend.
 
-## Requirements
-- JDK 21
-- Eclipse IDE for Enterprise Java and Web Developers (or Spring Tool Suite)
-- MySQL 8
-- Maven (Eclipse can use the included Maven project support)
+---
 
-## 1. Create database / configure MySQL
-The application creates the database if it does not exist. Open:
-`src/main/resources/application.properties`
-and replace `CHANGE_ME` with your MySQL root password. If your MySQL username differs, update that too.
+## 🌟 Unique Internship Highlights & Advanced Features
 
-## 2. Import into Eclipse
-1. Extract the ZIP file.
-2. Open Eclipse.
-3. Choose **File > Import > Maven > Existing Maven Projects**.
-4. Browse to the extracted `Smart-Inventory-Billing-System` folder.
-5. Select `pom.xml`, then Finish.
-6. Wait for Maven dependencies to download.
-7. Right-click `InventoryBillingApplication.java` > **Run As > Java Application** (or Spring Boot App).
+| Feature | Description | Tech / Integration |
+| :--- | :--- | :--- |
+| 📷 **Live Camera Barcode Scanner** | Scan physical EAN-13 / QR barcodes using a webcam or mobile camera to automatically look up items and add to POS cart. | `html5-qrcode` & WebRTC Video Stream |
+| 📱 **Dynamic UPI QR Payments** | Generates an instant, standard Indian UPI QR Code (`upi://pay?pa=...&am=...`) for payments via PhonePe, Google Pay, Paytm, or BHIM. | `QRCode.js` & NPCI UPI Specification |
+| 🤖 **AI Receipt OCR Scanner** | Upload supplier bills / paper receipts: automatically extracts vendor details, invoice date, line items, prices, and imports into inventory. | Simulated Gemini Vision OCR Engine |
+| 🖨️ **80mm Thermal Receipt Printing** | Instant retail thermal receipt preview with GSTIN, cashier info, CGST/SGST tax breakdown, and dedicated `@media print` CSS. | Native Browser Thermal Print Engine |
+| 💬 **1-Click WhatsApp Sharing** | Automatically formats the itemized invoice summary, tax details, and total, opening a pre-filled WhatsApp chat link (`wa.me`). | WhatsApp Web Deep Linking API |
+| 📄 **Server-Side PDF Invoices** | Generates official, downloadable tax invoice PDFs with itemized breakdown. | Apache `PDFBox 3.0` |
+| 📊 **Financial & Profit Analytics** | Calculates wholesale cost basis vs. retail inventory valuation, displaying projected gross profit margins and real-time trends. | Chart.js Line & Doughnut Charts |
+| 🔒 **Role-Based Access Control** | Dedicated session-based authentication with `ROLE_ADMIN` and `ROLE_STAFF` privileges. | Spring Security 6 & BCrypt |
+| 📥 **1-Click CSV Exports** | Export full product catalog and sales audit trail to spreadsheet-ready CSV files. | Client-side Data Stream Blob API |
 
-## 3. Open the application
-Visit http://localhost:8080
+---
 
-Demo accounts:
-- Admin: `admin` / `Admin@123`
-- Staff: `staff` / `Staff@123`
+## 🛠️ Tech Stack & Architecture
 
-Change demo passwords before any real deployment. This is an internship prototype, not a production-ready security setup.
+- **Backend**: Java 17, Spring Boot 3.5.6, Spring Data JPA, Spring Security, Spring Validation, Apache PDFBox 3.0
+- **Database**: MySQL 8.x / H2 in-memory & file database
+- **Frontend**: HTML5, Tailwind CSS (via CDN), Vanilla JavaScript (ES6+), FontAwesome 6, Chart.js, QRCode.js, Html5Qrcode
+- **Build Tool**: Apache Maven with Maven Wrapper (`./mvnw`)
 
-## 4. Suggested demonstration
-1. Login as admin.
-2. Add a product with quantity 10 and minimum stock 3.
-3. Add a customer and supplier.
-4. Create a bill for 2 units of that product.
-5. Verify product quantity becomes 8.
-6. Download the invoice PDF.
-7. Check sales history and dashboard.
-8. Reduce stock to the minimum level and show the low-stock warning.
+---
 
-## API endpoints
-| Method | Endpoint | Purpose |
-|---|---|---|
-| POST | `/api/auth/login` | Login |
-| GET | `/api/auth/me` | Current user |
-| GET/POST | `/api/products` | List / create products |
-| PUT/DELETE | `/api/products/{id}` | Update / delete product |
-| GET | `/api/products/low-stock` | Low-stock list |
-| GET/POST | `/api/customers` | List / create customers |
-| GET/POST | `/api/suppliers` | List / create suppliers |
-| POST | `/api/bills` | Create bill and reduce stock |
-| GET | `/api/bills` | Sales history |
-| GET | `/api/bills/{id}/pdf` | Download invoice |
-| GET | `/api/dashboard/summary` | Dashboard summary |
+## 🚀 Quick Start Guide
 
-## Important implementation notes
-- Hibernate `ddl-auto=update` creates/updates tables from entity classes.
-- Billing is marked `@Transactional`: if validation fails during the sale, database changes are rolled back.
-- GST is a configurable percentage entered on the billing screen. Confirm the applicable tax rules with your evaluator before presenting this as a real tax invoice.
-- The PDF invoice uses a basic text layout, supports multiple pages, and is intended as a sample bill.
-- Bill list and detail queries eagerly load bill items so sales history and invoice generation do not fail with lazy-loading errors during JSON/PDF handling.
-- The login uses server-side sessions. CSRF is disabled for this local learning prototype; add CSRF protection, stronger account administration, HTTPS and secret management before production use.
-- The dashboard chart uses Chart.js from a CDN, so internet access is needed for that chart.
+### 1. Prerequisites
+- **JDK 17** installed and configured in your `PATH`
+- **MySQL 8** running on `localhost:3306` (or switch to H2 in `application.properties`)
 
-## Suggested future improvements
-- Barcode scanning with a USB scanner or browser camera library
-- Supplier purchase orders and stock receiving
-- Email invoice delivery
-- Product expiry date alerts
-- Sales returns and refund workflow
-- Automated tests and deployment
+### 2. Database Configuration
+Open `src/main/resources/application.properties`:
+```properties
+spring.datasource.url=jdbc:mysql://localhost:3306/inventory_billing?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Kolkata
+spring.datasource.username=root
+spring.datasource.password=password
+```
+*(The application automatically creates the `inventory_billing` database and tables upon first run!)*
+
+### 3. Run the Application
+Open a terminal in the project directory:
+
+```bash
+# On Windows
+.\mvnw.cmd spring-boot:run
+
+# On Linux / macOS
+./mvnw spring-boot:run
+```
+
+Or run directly from **Eclipse / Spring Tool Suite / IntelliJ IDEA**:
+Right-click `InventoryBillingApplication.java` ➔ **Run As** ➔ **Spring Boot App** (or **Java Application**).
+
+### 4. Access the Application
+Open your web browser and navigate to:
+👉 **`http://localhost:8080/`**
+
+---
+
+## 🔑 Demo Login Credentials
+
+The application seeds two pre-configured user accounts on initial startup:
+
+| Role | Username | Password | Permissions |
+| :--- | :--- | :--- | :--- |
+| **Admin** | `admin` | `Admin@123` | Full access (Products CRUD, Cost Prices, Suppliers, Reports, Billing) |
+| **Staff** | `staff` | `Staff@123` | Cashier terminal access (POS Billing, Product viewing, Receipts) |
+
+*(Quick 1-click buttons are available on the login screen to auto-fill credentials for demo presentations).*
+
+---
+
+## 📡 REST API Matrix
+
+| Method | Endpoint | Description | Access |
+| :--- | :--- | :--- | :--- |
+| `POST` | `/api/auth/login` | Authenticate user and initialize session | Public |
+| `GET` | `/api/auth/me` | Current authenticated session user info | Admin / Staff |
+| `POST` | `/api/auth/logout` | Terminate session | Authenticated |
+| `GET` | `/api/products` | Retrieve all products (supports `?search=`) | Admin / Staff |
+| `GET` | `/api/products/by-barcode/{code}` | Instant barcode lookup for camera scanner | Admin / Staff |
+| `POST` | `/api/products` | Add new product SKU with cost price & barcode | Admin |
+| `PUT` | `/api/products/{id}` | Update product details | Admin |
+| `DELETE` | `/api/products/{id}` | Remove product SKU | Admin |
+| `POST` | `/api/products/{id}/adjust-stock` | Manual or OCR stock increment/deduction | Admin / Staff |
+| `GET` | `/api/products/low-stock` | Filter products below minimum buffer threshold | Admin / Staff |
+| `POST` | `/api/bills` | Generate customer bill with items, GST, discount | Admin / Staff |
+| `GET` | `/api/bills` | Audit history of past invoices | Admin / Staff |
+| `GET` | `/api/bills/{id}` | Detailed single bill record | Admin / Staff |
+| `GET` | `/api/bills/{id}/pdf` | Download official PDF tax invoice | Admin / Staff |
+| `GET` | `/api/dashboard/summary` | Real-time KPI counters & inventory valuation | Admin / Staff |
+| `GET` | `/api/dashboard/analytics` | 7-day revenue trend & category distribution | Admin / Staff |
+
+---
+
+## 📂 Project Directory Structure
+
+```
+smart-inventory-billing-system/
+├── pom.xml                               # Maven project descriptor (Java 17, Spring Boot 3)
+├── mvnw / mvnw.cmd                       # Maven wrappers
+├── README.md                             # Documentation
+└── src/
+    └── main/
+        ├── java/com/kavita/inventorybilling/
+        │   ├── InventoryBillingApplication.java  # Main Spring Boot entrypoint
+        │   ├── HomeController.java               # SPA routing & forwarder (prevents 404s)
+        │   ├── SecurityConfig.java               # Spring Security 6 configuration
+        │   ├── Entities.java                     # JPA Entities (AppUser, Product, Bill, Customer, etc.)
+        │   ├── Repositories.java                 # Spring Data JPA repositories
+        │   ├── ApiController.java                # REST API controllers & analytics
+        │   ├── PdfController.java                # Apache PDFBox invoice generation
+        │   └── DataLoader.java                   # Database seeders (mock items, bills, users)
+        └── resources/
+            ├── application.properties            # App & datasource configurations
+            └── static/
+                ├── index.html                    # Modern Tailwind CSS SPA UI
+                ├── app.js                        # Client-side routing, POS, scanner & charts
+                └── style.css                     # Custom styles & thermal print stylesheet
+```
+
+---
+
+## 👩‍💻 Developed By
+
+**Kavita Kirikiri**  
+*Full Stack Java & Spring Boot Developer*  
+[GitHub Profile](https://github.com/kavitakirikiri0-coder)

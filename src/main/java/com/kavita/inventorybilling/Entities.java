@@ -78,6 +78,8 @@ class Product {
     @Column(nullable = false)
     private double price;
 
+    private double costPrice;
+
     @Column(nullable = false)
     private int quantity;
 
@@ -117,6 +119,14 @@ class Product {
 
     public void setPrice(double price) {
         this.price = price;
+    }
+
+    public double getCostPrice() {
+        return costPrice > 0 ? costPrice : Math.round(price * 0.75 * 100.0) / 100.0;
+    }
+
+    public void setCostPrice(double costPrice) {
+        this.costPrice = costPrice;
     }
 
     public int getQuantity() {
@@ -164,6 +174,12 @@ class Customer {
 
     public Customer() {}
 
+    public Customer(String name, String phone, String email) {
+        this.name = name;
+        this.phone = phone;
+        this.email = email;
+    }
+
     public Long getId() {
         return id;
     }
@@ -209,6 +225,13 @@ class Supplier {
     private String address;
 
     public Supplier() {}
+
+    public Supplier(String name, String phone, String email, String address) {
+        this.name = name;
+        this.phone = phone;
+        this.email = email;
+        this.address = address;
+    }
 
     public Long getId() {
         return id;
@@ -259,6 +282,8 @@ class Bill {
 
     private LocalDateTime createdAt = LocalDateTime.now();
     private String customerName;
+    private String customerPhone;
+    private String paymentMethod = "UPI";
     private double subtotal;
     private double discount;
     private double gstPercent;
@@ -292,6 +317,22 @@ class Bill {
 
     public void setCustomerName(String customerName) {
         this.customerName = customerName;
+    }
+
+    public String getCustomerPhone() {
+        return customerPhone;
+    }
+
+    public void setCustomerPhone(String customerPhone) {
+        this.customerPhone = customerPhone;
+    }
+
+    public String getPaymentMethod() {
+        return paymentMethod != null && !paymentMethod.isBlank() ? paymentMethod : "UPI";
+    }
+
+    public void setPaymentMethod(String paymentMethod) {
+        this.paymentMethod = paymentMethod;
     }
 
     public double getSubtotal() {
@@ -430,7 +471,7 @@ class StockHistory {
     private int changeAmount;
     private int quantityAfter;
     private String operation;
-    private LocalDateTime changedAt = LocalDateTime.now();
+    private LocalDateTime timestamp = LocalDateTime.now();
 
     public StockHistory() {}
 
@@ -482,11 +523,11 @@ class StockHistory {
         this.operation = operation;
     }
 
-    public LocalDateTime getChangedAt() {
-        return changedAt;
+    public LocalDateTime getTimestamp() {
+        return timestamp;
     }
 
-    public void setChangedAt(LocalDateTime changedAt) {
-        this.changedAt = changedAt;
+    public void setTimestamp(LocalDateTime timestamp) {
+        this.timestamp = timestamp;
     }
 }

@@ -15,6 +15,7 @@ import org.springframework.security.web.SecurityFilterChain;
 
 @Configuration
 public class SecurityConfig {
+
     @Bean
     PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
@@ -42,16 +43,38 @@ public class SecurityConfig {
     SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         return http
             .csrf(csrf -> csrf.disable())
+            .headers(headers -> headers.frameOptions(frame -> frame.disable()))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/", "/index.html", "/style.css", "/app.js", "/favicon.ico", "/api/auth/login").permitAll()
+                .requestMatchers(
+                    "/",
+                    "/index",
+                    "/index.html",
+                    "/login",
+                    "/dashboard",
+                    "/billing",
+                    "/pos",
+                    "/products",
+                    "/customers",
+                    "/suppliers",
+                    "/sales",
+                    "/ai-assistant",
+                    "/analytics",
+                    "/style.css",
+                    "/app.js",
+                    "/favicon.ico",
+                    "/error",
+                    "/h2-console/**",
+                    "/api/auth/login",
+                    "/api/auth/logout"
+                ).permitAll()
                 .requestMatchers("/api/auth/me").hasAnyRole("ADMIN", "STAFF")
                 .requestMatchers(HttpMethod.GET, "/api/products/**", "/api/customers/**", "/api/suppliers/**", "/api/dashboard/**", "/api/bills/**").hasAnyRole("ADMIN", "STAFF")
-                .requestMatchers(HttpMethod.POST, "/api/bills").hasAnyRole("ADMIN", "STAFF")
+                .requestMatchers(HttpMethod.POST, "/api/bills/**").hasAnyRole("ADMIN", "STAFF")
                 .requestMatchers(HttpMethod.POST, "/api/products/**", "/api/customers/**", "/api/suppliers/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.PUT, "/api/products/**", "/api/customers/**", "/api/suppliers/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.DELETE, "/api/products/**", "/api/customers/**", "/api/suppliers/**").hasRole("ADMIN")
                 .requestMatchers("/api/**").hasRole("ADMIN")
-                .anyRequest().permitAll()
+                .anyRequest().authenticated()
             )
             .formLogin(form -> form.disable())
             .httpBasic(basic -> basic.disable())
