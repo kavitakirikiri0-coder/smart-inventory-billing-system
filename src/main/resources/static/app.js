@@ -15,6 +15,8 @@ let html5QrCodeScanner = null;
 let activeCompletedBill = null;
 let activeCategoryFilter = 'ALL';
 let isLowStockOnlyFilter = false;
+let activeBarcodeProduct = null;
+let appliedPromo = null;
 
 // Beep Audio Synth for Barcode Scanning
 function playBeepSound() {
@@ -111,6 +113,21 @@ async function apiRequest(path, options = {}) {
 async function initApp() {
   updateLiveClock();
   setInterval(updateLiveClock, 1000);
+
+  // Setup Keyboard Shortcuts
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'F2') {
+      e.preventDefault();
+      showPage('billing');
+      document.getElementById('posSearchInput')?.focus();
+    } else if (e.key === 'F4') {
+      e.preventDefault();
+      openBarcodeScannerModal();
+    } else if (e.key === 'F8') {
+      e.preventDefault();
+      clearCart();
+    }
+  });
 
   try {
     const me = await apiRequest('/auth/me');
@@ -259,12 +276,10 @@ async function loadDashboardData() {
       lowBadge.classList.add('hidden');
     }
 
-    // Load Charts & Analytics
     const analytics = await apiRequest('/dashboard/analytics');
     renderSalesTrendChart(analytics.dailyRevenue);
     renderCategoryDoughnutChart(analytics.categories);
 
-    // Load Low Stock Table
     const lowStockList = await apiRequest('/products/low-stock');
     renderDashboardLowStock(lowStockList);
   } catch (err) {
@@ -573,8 +588,44 @@ function removeCartItem(productId) {
 
 function clearCart() {
   activeCart = [];
+  appliedPromo = null;
+  const promoBadge = document.getElementById('promoBadge');
+  if (promoBadge) promoBadge.classList.add('hidden');
+  const promoInput = document.getElementById('promoCodeInput');
+  if (promoInput) promoInput.value = '';
   renderCartDrawer();
   filterPosGrid();
+}
+
+function applyPromoCode() {
+  const input = document.getElementById('promoCodeInput');
+  const code = (input?.value || '').trim().toUpperCase();
+  const badge = document.getElementById('promoBadge');
+  const discountInput = document.getElementById('billDiscountInput');
+  if (!code) return;
+
+  const subtotal = activeCart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
+  if (subtotal <= 0) return showToast('Add items before applying promo code', 'warning');
+
+  if (code === 'FESTIVE10') {
+    const disc = Math.round(subtotal * 0.10);
+    discountInput.value = disc;
+    appliedPromo = { code, discount: disc, desc: '10% Festive Discount applied!' };
+  } else if (code === 'SAVE50') {
+    discountInput.value = 50;
+    appliedPromo = { code, discount: 50, desc: 'Flat ₹50 savings applied!' };
+  } else if (code === 'FIRSTBUY') {
+    discountInput.value = 30;
+    appliedPromo = { code, discount: 30, desc: 'Flat ₹30 welcome voucher applied!' };
+  } else {
+    showToast('Invalid promo code. Try FESTIVE10 or SAVE50', 'warning');
+    return;
+  }
+
+  badge.textContent = `✓ ${appliedPromo.desc}`;
+  badge.classList.remove('hidden');
+  calculateBillTotals();
+  showToast(`Promo ${code} applied successfully!`, 'success');
 }
 
 function renderCartDrawer() {
@@ -599,7 +650,6 @@ function renderCartDrawer() {
         <p class="text-[11px] text-slate-400 font-mono">${formatINR(item.price)} each</p>
       </div>
 
-      <!-- Stepper -->
       <div class="flex items-center gap-1 bg-slate-100 rounded-lg p-0.5 border border-slate-200">
         <button onclick="updateCartQuantity(${item.productId}, -1)" class="w-5 h-5 rounded hover:bg-white text-slate-600 flex items-center justify-center font-bold">
           -
@@ -648,13 +698,11 @@ async function processCheckout() {
   const payMethod = document.querySelector('input[name="payMethod"]:checked')?.value || 'UPI';
   const totals = calculateBillTotals();
 
-  // If UPI, launch dynamic QR modal first
   if (payMethod === 'UPI') {
     openUpiModal(totals.grandTotal, customerName, customerPhone);
     return;
   }
 
-  // Else direct complete
   await submitBillToServer(customerName, customerPhone, payMethod);
 }
 
@@ -683,26 +731,21 @@ async function submitBillToServer(customerName, customerPhone, paymentMethod) {
 
     activeCompletedBill = bill;
 
-    // Celebratory Confetti!
     if (typeof confetti === 'function') {
       confetti({ particleCount: 80, spread: 60, origin: { y: 0.7 } });
     }
 
     showToast(`Bill #${bill.id} created successfully! Total: ${formatINR(bill.total)}`, 'success');
 
-    // Reset Form
-    activeCart = [];
+    clearCart();
     document.getElementById('billCustomerName').value = '';
     document.getElementById('billCustomerPhone').value = '';
     document.getElementById('billDiscountInput').value = '0';
-    renderCartDrawer();
 
-    // Reload Data
     renderPosGrid();
     loadDashboardData();
     loadSalesHistory();
 
-    // Open Thermal Receipt Slip Modal for printing & WhatsApp
     openReceiptModal(bill);
   } catch (err) {
     showToast(err.message, 'error');
@@ -722,8 +765,6 @@ function openUpiModal(amount, customerName, customerPhone) {
   document.getElementById('upiModalAmount').textContent = formatINR(amount);
   qrContainer.innerHTML = '';
 
-  // Format Official NPCI UPI Deep Link String
-  // upi://pay?pa=VPA&pn=NAME&am=AMOUNT&tn=NOTE&cu=INR
   const upiId = 'kavita.store@upi';
   const merchantName = encodeURIComponent('StockWise Supermarket');
   const note = encodeURIComponent('Invoice Checkout');
@@ -770,11 +811,11 @@ function openBarcodeScannerModal() {
         onBarcodeScanSuccess,
         onBarcodeScanFailure
       ).catch(err => {
-        console.warn('Camera start warning (using simulated input):', err);
+        console.warn('Camera start warning:', err);
       });
     }
   } catch (err) {
-    console.warn('Html5Qrcode scanner failed to initialize:', err);
+    console.warn('Html5Qrcode scanner failed:', err);
   }
 }
 
@@ -796,9 +837,7 @@ function onBarcodeScanSuccess(decodedText) {
   handleBarcodeScanned(decodedText.trim());
 }
 
-function onBarcodeScanFailure(error) {
-  // Silent scan frame
-}
+function onBarcodeScanFailure(error) {}
 
 function handleManualBarcode() {
   const input = document.getElementById('manualBarcodeInput');
@@ -820,7 +859,7 @@ async function handleBarcodeScanned(barcode) {
   }
 }
 
-// ==================== 5. THERMAL RECEIPT SLIP & WHATSAPP SHARING ====================
+// ==================== 5. THERMAL RECEIPT SLIP & WHATSAPP ====================
 
 function openReceiptModal(bill) {
   const modal = document.getElementById('thermalReceiptModal');
@@ -854,7 +893,6 @@ function openReceiptModal(bill) {
       <div class="flex justify-between"><span>PAYMENT:</span><span class="font-bold text-emerald-700">${bill.paymentMethod || 'UPI'}</span></div>
     </div>
 
-    <!-- Items -->
     <div class="py-2 border-b border-dashed border-slate-300 space-y-1.5">
       <div class="flex justify-between font-bold text-[10px] uppercase text-slate-400">
         <span>Description</span>
@@ -863,7 +901,6 @@ function openReceiptModal(bill) {
       ${itemsHtml}
     </div>
 
-    <!-- Taxes & Totals -->
     <div class="space-y-1 border-b border-dashed border-slate-300 pb-2">
       <div class="flex justify-between"><span>Subtotal:</span><span>${formatINR(bill.subtotal)}</span></div>
       ${bill.discount > 0 ? `<div class="flex justify-between text-rose-600"><span>Discount:</span><span>-${formatINR(bill.discount)}</span></div>` : ''}
@@ -890,7 +927,9 @@ function closeReceiptModal() {
 }
 
 function printReceiptSlip() {
+  document.body.className = 'printing-receipt';
   window.print();
+  setTimeout(() => { document.body.className = ''; }, 500);
 }
 
 function shareActiveBillWhatsApp() {
@@ -942,12 +981,97 @@ window.downloadInvoicePDF = async (id) => {
   }
 };
 
-// ==================== 6. PRODUCTS CATALOG MODULE ====================
+// ==================== 6. BARCODE LABEL STICKER GENERATOR ====================
+
+function openBarcodeLabelModal(p) {
+  activeBarcodeProduct = p;
+  const modal = document.getElementById('barcodeLabelModal');
+  if (!modal) return;
+
+  document.getElementById('barcodeLabelProdName').textContent = p.name;
+  document.getElementById('barcodeLabelPrice').textContent = formatINR(p.price);
+
+  const barcodeValue = p.barcode || '8901030382741';
+
+  try {
+    if (typeof JsBarcode === 'function') {
+      JsBarcode("#barcodeSvg", barcodeValue, {
+        format: "CODE128",
+        width: 1.8,
+        height: 44,
+        displayValue: true,
+        fontSize: 11,
+        font: "monospace",
+        margin: 2
+      });
+    }
+  } catch (err) {
+    console.warn('JsBarcode render error:', err);
+  }
+
+  modal.classList.remove('hidden');
+}
+
+function closeBarcodeLabelModal() {
+  document.getElementById('barcodeLabelModal')?.classList.add('hidden');
+}
+
+function printBarcodeLabel() {
+  document.body.className = 'printing-barcode';
+  window.print();
+  setTimeout(() => { document.body.className = ''; }, 500);
+}
+
+function printBarcodeSheet() {
+  if (!activeBarcodeProduct) return;
+  const p = activeBarcodeProduct;
+  const barcodeValue = p.barcode || '8901030382741';
+
+  const printWin = window.open('', '_blank');
+  printWin.document.write(`
+    <html>
+      <head>
+        <title>Barcode Sheet - ${p.name}</title>
+        <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"></script>
+        <style>
+          body { font-family: sans-serif; margin: 10mm; }
+          .sheet { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4mm; }
+          .label { border: 1px dashed #cbd5e1; padding: 3mm; text-align: center; border-radius: 4px; }
+          .label h4 { font-size: 11px; margin: 2px 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+          .label .price { font-weight: bold; font-size: 13px; color: #4f46e5; }
+          svg { width: 100%; max-height: 40px; }
+        </style>
+      </head>
+      <body>
+        <div class="sheet">
+          ${Array(21).fill(0).map(() => `
+            <div class="label">
+              <div style="font-size: 8px; color: #64748b; font-weight: bold;">STOCKWISE RETAIL</div>
+              <h4>${p.name}</h4>
+              <div class="price">₹${p.price.toFixed(2)}</div>
+              <svg class="bc"></svg>
+            </div>
+          `).join('')}
+        </div>
+        <script>
+          document.querySelectorAll('.bc').forEach(el => {
+            JsBarcode(el, "${barcodeValue}", { format: "CODE128", width: 1.4, height: 32, displayValue: true, fontSize: 9 });
+          });
+          window.print();
+        </script>
+      </body>
+    </html>
+  `);
+  printWin.document.close();
+}
+
+// ==================== 7. PRODUCTS CATALOG MODULE ====================
 
 async function loadProductsCatalog() {
   try {
     const search = document.getElementById('productCatalogSearch')?.value || '';
     const list = await apiRequest(`/products${search ? '?search=' + encodeURIComponent(search) : ''}`);
+    productsCache = list;
     renderProductsTable(list);
   } catch (err) {
     console.error('Failed to load products:', err);
@@ -1045,6 +1169,9 @@ function renderProductsTable(list) {
                 </span>
               </td>
               <td class="py-3 px-4 text-right space-x-1">
+                <button onclick='openBarcodeLabelModal(${JSON.stringify(p)})' title="Print Barcode Label" class="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded font-bold text-[11px] transition">
+                  <i class="fa-solid fa-barcode mr-1"></i>Tag
+                </button>
                 <button onclick="quickRestock(${p.id}, 10)" title="Quick Restock +10" class="p-1.5 hover:bg-slate-100 text-brand-600 rounded">
                   <i class="fa-solid fa-plus-circle"></i>
                 </button>
@@ -1136,7 +1263,7 @@ document.getElementById('productModalForm')?.addEventListener('submit', async (e
   }
 });
 
-// ==================== 7. SALES & INVOICES AUDIT ====================
+// ==================== 8. SALES & INVOICES AUDIT ====================
 
 async function loadSalesHistory() {
   try {
@@ -1202,7 +1329,7 @@ function renderSalesTable(bills) {
   `;
 }
 
-// ==================== 8. CUSTOMERS & SUPPLIERS ====================
+// ==================== 9. CUSTOMERS & SUPPLIERS ====================
 
 async function loadCustomersData() {
   try {
@@ -1231,10 +1358,10 @@ async function loadCustomersData() {
               <td class="py-3 px-4 font-bold text-slate-900">${escapeHtml(c.name)}</td>
               <td class="py-3 px-4 font-mono text-slate-600">${escapeHtml(c.phone || '—')}</td>
               <td class="py-3 px-4 text-slate-500">${escapeHtml(c.email || '—')}</td>
-              <td class="py-3 px-4 text-right">
+              <td class="py-3 px-4 text-right space-x-1">
                 ${c.phone ? `
-                  <a href="https://wa.me/${c.phone.replace(/[^0-9]/g, '')}" target="_blank" class="px-2 py-1 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded text-[11px] font-bold">
-                    <i class="fa-brands fa-whatsapp mr-1"></i>Chat
+                  <a href="https://wa.me/${c.phone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent('Hello ' + c.name + ', Greetings from StockWise Store!')}" target="_blank" class="px-2 py-1 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded text-[11px] font-bold">
+                    <i class="fa-brands fa-whatsapp mr-1"></i>WhatsApp
                   </a>
                 ` : ''}
               </td>
@@ -1339,7 +1466,7 @@ document.getElementById('supplierModalForm')?.addEventListener('submit', async (
   }
 });
 
-// ==================== 9. AI RECEIPT OCR (INTERNSHIP HIGHLIGHT) ====================
+// ==================== 10. AI RECEIPT OCR ====================
 
 let pendingOcrItems = [];
 
@@ -1366,7 +1493,6 @@ const sampleReceipts = {
 function loadSampleReceipt(key) {
   const data = sampleReceipts[key];
   if (!data) return;
-
   simulateOcrParsing(data);
 }
 
@@ -1385,7 +1511,6 @@ function handleReceiptUpload(event) {
     previewImg.src = e.target.result;
     previewBox.classList.remove('hidden');
 
-    // Simulate AI Vision OCR processing
     setTimeout(() => {
       previewBox.querySelector('div').classList.add('hidden');
       simulateOcrParsing(sampleReceipts.tech);
@@ -1447,7 +1572,6 @@ async function importOcrToInventory() {
 
   try {
     for (const item of pendingOcrItems) {
-      // Check if product exists
       const existing = productsCache.find(p => p.barcode === item.barcode || p.name.toLowerCase() === item.name.toLowerCase());
       if (existing) {
         await apiRequest(`/products/${existing.id}/adjust-stock`, {
@@ -1490,7 +1614,7 @@ async function importOcrToInventory() {
   }
 }
 
-// ==================== 10. FINANCIAL ANALYTICS ====================
+// ==================== 11. FINANCIAL ANALYTICS ====================
 
 async function loadAnalyticsData() {
   try {
@@ -1549,6 +1673,113 @@ async function loadAnalyticsData() {
   } catch (err) {
     console.error('Failed to load analytics:', err);
   }
+}
+
+// ==================== 12. "STOCKY AI" FLOATING ASSISTANT ====================
+
+function toggleStockyAiDrawer() {
+  const drawer = document.getElementById('stockyAiDrawer');
+  if (!drawer) return;
+  drawer.classList.toggle('hidden');
+}
+
+function appendStockyAiMessage(sender, text, isHtml = false) {
+  const container = document.getElementById('stockyAiMessages');
+  if (!container) return;
+
+  const msg = document.createElement('div');
+  msg.className = `flex gap-2 items-start ${sender === 'user' ? 'flex-row-reverse' : ''}`;
+
+  if (sender === 'user') {
+    msg.innerHTML = `
+      <div class="w-6 h-6 rounded-full bg-slate-800 text-white flex items-center justify-center text-[10px] shrink-0 font-bold">U</div>
+      <div class="bg-brand-600 text-white p-2.5 rounded-xl rounded-tr-none shadow-xs text-xs font-medium max-w-[80%]">
+        ${escapeHtml(text)}
+      </div>
+    `;
+  } else {
+    msg.innerHTML = `
+      <div class="w-6 h-6 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center text-[10px] shrink-0 font-bold">AI</div>
+      <div class="bg-white p-2.5 rounded-xl rounded-tl-none border border-slate-200 shadow-xs text-slate-700 text-xs leading-relaxed max-w-[85%]">
+        ${isHtml ? text : escapeHtml(text)}
+      </div>
+    `;
+  }
+
+  container.appendChild(msg);
+  container.scrollTop = container.scrollHeight;
+}
+
+async function askStockyPrompt(type) {
+  if (type === 'low-stock') {
+    appendStockyAiMessage('user', 'What items are running low on stock?');
+    const low = productsCache.filter(p => p.quantity <= p.minStock);
+    if (!low.length) {
+      appendStockyAiMessage('ai', '✅ Fantastic news! All products in the inventory are currently above their minimum alert threshold.');
+    } else {
+      const items = low.map(p => `• <b>${p.name}</b>: ${p.quantity} units remaining (Min: ${p.minStock})`).join('<br>');
+      appendStockyAiMessage('ai', `⚠️ Found <b>${low.length} low-stock products</b> that need re-ordering:<br><br>${items}<br><br><button onclick="showPage('products'); filterLowStockOnly()" class="text-brand-600 font-bold underline">Click to view & restock in Catalog</button>`, true);
+    }
+  } else if (type === 'today-sales') {
+    appendStockyAiMessage('user', "How much have we made in sales today?");
+    try {
+      const sum = await apiRequest('/dashboard/summary');
+      appendStockyAiMessage('ai', `📊 <b>Today's Revenue:</b> ${formatINR(sum.todaySales)}<br>💰 <b>All-Time Revenue:</b> ${formatINR(sum.totalSales)}<br>🧾 <b>Total Invoices:</b> ${sum.billCount} bills generated`, true);
+    } catch {
+      appendStockyAiMessage('ai', 'Could not query current revenue statistics.');
+    }
+  } else if (type === 'top-selling') {
+    appendStockyAiMessage('user', "What are our top-selling categories?");
+    try {
+      const ana = await apiRequest('/dashboard/analytics');
+      const cats = Object.entries(ana.categories || {}).map(([k, v]) => `• <b>${k}</b>: ${v} active products`).join('<br>');
+      appendStockyAiMessage('ai', `🏆 <b>Inventory Domains:</b><br><br>${cats}`, true);
+    } catch {
+      appendStockyAiMessage('ai', 'Could not fetch category metrics.');
+    }
+  } else if (type === 'valuation') {
+    appendStockyAiMessage('user', "What is our overall inventory valuation and margin?");
+    try {
+      const sum = await apiRequest('/dashboard/summary');
+      const margin = sum.retailValuation > 0 ? (((sum.projectedProfit) / sum.retailValuation) * 100).toFixed(1) : 0;
+      appendStockyAiMessage('ai', `🏷️ <b>Total Retail Valuation:</b> ${formatINR(sum.retailValuation)}<br>📦 <b>Wholesale Cost Locked:</b> ${formatINR(sum.retailValuation - sum.projectedProfit)}<br>📈 <b>Projected Gross Profit:</b> ${formatINR(sum.projectedProfit)} (<b>~${margin}%</b> margin)`, true);
+    } catch {
+      appendStockyAiMessage('ai', 'Could not calculate valuation.');
+    }
+  }
+}
+
+function handleStockyAiSubmit(event) {
+  event.preventDefault();
+  const input = document.getElementById('stockyAiInput');
+  const query = (input?.value || '').trim();
+  if (!query) return;
+
+  appendStockyAiMessage('user', query);
+  input.value = '';
+
+  const q = query.toLowerCase();
+
+  setTimeout(async () => {
+    if (q.includes('low') || q.includes('stock') || q.includes('shortage')) {
+      const low = productsCache.filter(p => p.quantity <= p.minStock);
+      if (!low.length) {
+        appendStockyAiMessage('ai', '✅ All inventory products have healthy stock levels right now.');
+      } else {
+        appendStockyAiMessage('ai', `⚠️ Found ${low.length} products needing restock. Top alert: <b>${low[0].name}</b> (${low[0].quantity} units left).`, true);
+      }
+    } else if (q.includes('sale') || q.includes('revenue') || q.includes('earn') || q.includes('today')) {
+      const sum = await apiRequest('/dashboard/summary');
+      appendStockyAiMessage('ai', `Today's sales stand at <b>${formatINR(sum.todaySales)}</b> across <b>${sum.billCount}</b> completed transactions.`, true);
+    } else if (q.includes('profit') || q.includes('margin') || q.includes('cost')) {
+      const sum = await apiRequest('/dashboard/summary');
+      appendStockyAiMessage('ai', `Our projected inventory gross profit is <b>${formatINR(sum.projectedProfit)}</b> on <b>${formatINR(sum.retailValuation)}</b> total merchandise value.`, true);
+    } else if (q.includes('how many product') || q.includes('catalog') || q.includes('items')) {
+      appendStockyAiMessage('ai', `You currently have <b>${productsCache.length} unique product SKUs</b> listed across ${[...new Set(productsCache.map(p => p.category))].length} categories.`, true);
+    } else {
+      appendStockyAiMessage('ai', `I analyzed your query: "<i>${escapeHtml(query)}</i>". We have ${productsCache.length} products in stock with ${formatINR(productsCache.reduce((s, p) => s + (p.price * p.quantity), 0))} total valuation. Let me know if you want me to check low stock or review today's sales!`, true);
+    }
+  }, 400);
 }
 
 // ==================== CSV EXPORT UTILITIES ====================

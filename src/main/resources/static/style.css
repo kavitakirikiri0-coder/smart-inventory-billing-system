@@ -165,20 +165,24 @@
 }
 
 /* ============================================================
-   THERMAL POS RECEIPT & PRINT STYLESHEET
+   THERMAL POS RECEIPT & BARCODE LABEL PRINT STYLESHEET
    ============================================================ */
 @media print {
-  /* Hide all app chrome during print */
   body * {
     visibility: hidden;
   }
   
-  #thermalReceiptModal,
-  #thermalReceiptModal * {
+  body.printing-receipt #thermalReceiptModal,
+  body.printing-receipt #thermalReceiptModal * {
     visibility: visible;
   }
-  
-  #thermalReceiptModal {
+
+  body.printing-barcode #barcodeLabelModal,
+  body.printing-barcode #barcodeLabelModal * {
+    visibility: visible;
+  }
+
+  body.printing-receipt #thermalReceiptModal {
     position: absolute;
     left: 0;
     top: 0;
@@ -189,13 +193,25 @@
     margin: 0 auto !important;
   }
 
-  #thermalReceiptModal .relative {
+  body.printing-barcode #barcodeLabelModal {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    background: transparent !important;
+    padding: 0 !important;
+    margin: 0 auto !important;
+  }
+
+  .modal-backdrop .relative {
     box-shadow: none !important;
     border: none !important;
     padding: 0 !important;
   }
 
-  #thermalReceiptModal button {
+  .modal-backdrop button,
+  .modal-backdrop .pt-2,
+  .modal-backdrop .pt-3 {
     display: none !important;
   }
 
@@ -205,5 +221,12 @@
     padding: 2mm !important;
     font-size: 10pt !important;
     color: black !important;
+  }
+
+  #barcodeLabelPreview {
+    border: 1px solid black !important;
+    padding: 4mm !important;
+    margin: 0 auto !important;
+    box-shadow: none !important;
   }
 }
