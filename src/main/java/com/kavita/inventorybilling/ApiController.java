@@ -38,11 +38,12 @@ class ApiController {
     }
 
     @PostMapping("/auth/login")
-    Map<String, String> login(@RequestBody LoginRequest body, HttpServletRequest request) {
+    Map<String, String> login(@RequestBody LoginRequest body, HttpServletRequest request, jakarta.servlet.http.HttpServletResponse response) {
         Authentication auth = authManager.authenticate(new UsernamePasswordAuthenticationToken(body.getUsername(), body.getPassword()));
         SecurityContext context = SecurityContextHolder.createEmptyContext();
         context.setAuthentication(auth);
         SecurityContextHolder.setContext(context);
+        new org.springframework.security.web.context.HttpSessionSecurityContextRepository().saveContext(context, request, response);
         request.getSession(true).setAttribute(HttpSessionSecurityContextRepository.SPRING_SECURITY_CONTEXT_KEY, context);
         String role = auth.getAuthorities().iterator().next().getAuthority();
         if (role.startsWith("ROLE_")) {
